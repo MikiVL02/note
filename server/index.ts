@@ -12,6 +12,11 @@ import { notesRouter } from './routes/notes'
 import { foldersRouter } from './routes/folders'
 import { commentsRouter } from './routes/comments'
 import { adminRouter } from './routes/admin'
+import { oauthRouter } from './routes/oauth'
+import { internalRouter } from './routes/internal'
+import { requireAuth } from './middleware/auth'
+import { db as _db, users } from './db'
+import { eq } from 'drizzle-orm'
 
 const app = new Hono()
 app.use('*', cors())
@@ -67,6 +72,8 @@ function getActiveModel(): string {
 // ── Model CRUD endpoints ──────────────────────────────────────────────────────
 app.route('/api/auth', authRouter)
 app.route('/api/admin', adminRouter)
+app.route('/api/oauth', oauthRouter)
+app.route('/api/internal', internalRouter)
 app.route('/api/note/notes', notesRouter)
 app.route('/api/note/folders', foldersRouter)
 app.route('/api/note/comments', commentsRouter)
@@ -167,7 +174,13 @@ function buildSystemPrompt(type: AIStreamRequest['type'], noteContent: string): 
 }
 
 // ── Stream endpoint ───────────────────────────────────────────────────────────
-app.post('/api/note/ai/stream', async (c) => {
+app.post('/api/note/ai/stream', requireAuth, async (c) => {
+  const userId = c.get('userId')
+  const [user] = _db.select({ cloudEnabled: users.cloudEnabled }).from(users).where(eq(users.id, userId)).all()
+  if (!user?.cloudEnabled) {
+    return c.json({ error: '请先用邀请码激活云功能后才能使用 AI' }, 403)
+  }
+
   const req = await c.req.json<AIStreamRequest>()
   const aiClient = getActiveClient()
   const modelId = getActiveModel()

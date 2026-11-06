@@ -119,6 +119,20 @@ authRouter.post('/activate', requireAuth, async (c) => {
   db.update(inviteCodes).set({ usedByUserId: userId, usedAt: Date.now() }).where(eq(inviteCodes.code, code.trim().toUpperCase())).run()
   db.update(users).set({ cloudEnabled: true }).where(eq(users.id, userId)).run()
 
+  // 激活成功后推送到简历站，非阻塞
+  const resumeUrl = process.env.RESUME_URL
+  const internalSecret = process.env.INTERNAL_SECRET
+  if (resumeUrl && internalSecret) {
+    const [activatedUser] = db.select({ username: users.username }).from(users).where(eq(users.id, userId)).all()
+    if (activatedUser) {
+      fetch(`${resumeUrl}/api/internal/activate-by-username`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-internal-secret': internalSecret },
+        body: JSON.stringify({ username: activatedUser.username }),
+      }).catch(() => {})
+    }
+  }
+
   return c.json({ success: true })
 })
 
