@@ -165,9 +165,7 @@ export function initDb() {
       { date: '2025-06', text: '开放笔记系统公测' },
       { date: '2025-03', text: '网站正式上线' },
     ])],
-    ['projects', JSON.stringify([
-      { title: 'MikiNote', desc: '基于 AI 的个人笔记系统，支持云同步', link: 'https://note.mikivl.online/app/' },
-    ])],
+    ['projects', '[]'],
   ]
   const insertContent = sqlite.prepare(`INSERT OR IGNORE INTO site_content (key, value) VALUES (?, ?)`)
   for (const [key, value] of siteDefaults) insertContent.run(key, value)
